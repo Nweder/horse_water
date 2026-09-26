@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Horse Water</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            text-align: center;
+            padding-top: 50px;
+        }
+
+        .card {
+            background-color: white;
+            width: 350px;
+            margin: auto;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .temperature {
+            font-size: 50px;
+            margin: 25px;
+        }
+
+        .heater {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .status {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+
+        <h1>Smart Horse Water</h1>
+
+        <div id="temperature" class="temperature">
+            -- °C
+        </div>
+
+        <div id="heater" class="heater">
+            HEATER: --
+        </div>
+
+        <div id="status" class="status">
+            STATUS: --
+        </div>
+
+    </div>
+
+    <script>
+
+        async function updateStatus() {
+
+            const response = await fetch("/api/status");
+
+            const data = await response.json();
+
+            document.getElementById("temperature").innerText =
+                data.temperature + " °C";
+
+            document.getElementById("heater").innerText =
+                data.heater ? "HEATER: ON" : "HEATER: OFF";
+
+            document.getElementById("status").innerText =
+                "STATUS: " + data.status;
+        }
+
+
+        updateStatus();
+
+        setInterval(updateStatus, 2000);
+
+    </script>
+
+</body>
+</html>
