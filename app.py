@@ -1,40 +1,78 @@
-from flask import Flask, render_template, jsonify
-import random
+from flask import Flask, render_template, jsonify, request
 
 app = Flask(__name__)
 
-# True = kör på din dator med simulerad temperatur
-# False = senare på Raspberry Pi med riktig DS18B20
+# -------------------------
+# SETTINGS
+# -------------------------
+
 SIMULATION = True
+# SIMULATED_TEMPERATURE = 7.0
+SIMULATED_TEMPERATURE = 20
+
+#När är allt kopplad 
+# def read_temperature():
+#     if SIMULATION:
+#         return SIMULATED_TEMPERATURE
+
+#____
+
+HEATER_ON_TEMP = 5.0
+HEATER_OFF_TEMP = 10.0
+
+# -------------------------
+# SYSTEM STATE
+# -------------------------
 
 heater_on = False
+mode = "AUTO"
 
+
+# -------------------------
+# TEMPERATURE SENSOR
+# -------------------------
 
 def read_temperature():
     if SIMULATION:
-        # Simulerar temperatur mellan 1 och 12 grader
-        return round(random.uniform(-5, 12.0), 1)
+        return SIMULATED_TEMPERATURE
 
-    # Senare lägger vi in riktig DS18B20-kod här
+    # Riktig DS18B20-kod kommer senare
     return None
 
+
+# -------------------------
+# AUTOMATIC CONTROL
+# -------------------------
 
 def control_heater(temperature):
     global heater_on
 
-    if temperature <= 1:
-        heater_on = True
+    if mode == "AUTO":
 
-    elif temperature >= 15:
-        heater_on = False
+        if temperature <= HEATER_ON_TEMP:
+            heater_on = True
+
+        elif temperature >= HEATER_OFF_TEMP:
+            heater_on = False
+
+        # Mellan 5 och 10 grader:
+        # behåll tidigare heater-status
 
     return heater_on
 
+
+# -------------------------
+# HMI PAGE
+# -------------------------
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
+# -------------------------
+# STATUS API
+# -------------------------
 
 @app.route("/api/status")
 def status():
@@ -44,17 +82,71 @@ def status():
         return jsonify({
             "temperature": None,
             "heater": False,
-            "status": "Sensor fault"
+            "mode": mode,
+            "status": "SENSOR FAULT"
         })
 
-    heater = control_heater(temperature)
+    control_heater(temperature)
 
     return jsonify({
         "temperature": temperature,
-        "heater": heater,
-        "status": "OK"
+        "heater": heater_on,
+        "mode": mode,
+        "status": "OK",
+        "heater_on_temp": HEATER_ON_TEMP,
+        "heater_off_temp": HEATER_OFF_TEMP
     })
 
+
+# -------------------------
+# CHANGE AUTO / MANUAL
+# -------------------------
+
+@app.route("/api/mode", methods=["POST"])
+def set_mode():
+    global mode
+
+    data = request.get_json()
+
+    new_mode = data.get("mode")
+
+    if new_mode not in ["AUTO", "MANUAL"]:
+        return jsonify({
+            "error": "Invalid mode"
+        }), 400
+
+    mode = new_mode
+
+    return jsonify({
+        "mode": mode
+    })
+
+
+# -------------------------
+# MANUAL HEATER CONTROL
+# -------------------------
+
+@app.route("/api/heater", methods=["POST"])
+def set_heater():
+    global heater_on
+
+    if mode != "MANUAL":
+        return jsonify({
+            "error": "Heater can only be controlled in MANUAL mode"
+        }), 400
+
+    data = request.get_json()
+
+    heater_on = bool(data.get("heater"))
+
+    return jsonify({
+        "heater": heater_on
+    })
+
+
+# -------------------------
+# START FLASK
+# -------------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
